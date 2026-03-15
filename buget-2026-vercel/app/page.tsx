@@ -212,6 +212,13 @@ export default function Page() {
     },
   ];
 
+  const psdMeasuresScenario = {
+    growthShock: 0.7,
+    inflationShock: 0.4,
+    collectionShock: -0.3,
+    interestShock: 2.2,
+  };
+
   const scenario = useMemo(
     () =>
       scenarioModel({
@@ -225,6 +232,72 @@ export default function Page() {
 
   const deltaPct = scenario.deficitPct - BASE.deficitPct;
   const deltaNominal = scenario.deficitNominal - baseNominalDeficit;
+
+  const psdImpact = scenarioModel(psdMeasuresScenario);
+  const psdDeltaPct = psdImpact.deficitPct - BASE.deficitPct;
+
+  const quickScenarios = [
+    {
+      name: "Accelerare economică",
+      subtitle: "Creștere peste ipoteza de bază",
+      values: { growthShock: 1.8, inflationShock: -0.3, collectionShock: 0.9, interestShock: -1.5 },
+    },
+    {
+      name: "Inflație persistentă",
+      subtitle: "Inflație mai ridicată + costuri mai mari",
+      values: { growthShock: -0.5, inflationShock: 1.6, collectionShock: -0.4, interestShock: 2.5 },
+    },
+    {
+      name: "Colectare excelentă",
+      subtitle: "ANAF peste plan",
+      values: { growthShock: 0.4, inflationShock: 0, collectionShock: 1.8, interestShock: 0 },
+    },
+    {
+      name: "Șoc de dobânzi",
+      subtitle: "Piață financiară tensionată",
+      values: { growthShock: -0.7, inflationShock: 0.5, collectionShock: -0.8, interestShock: 6 },
+    },
+    {
+      name: "Aterizare lină",
+      subtitle: "Mix moderat favorabil",
+      values: { growthShock: 0.8, inflationShock: -0.2, collectionShock: 0.7, interestShock: -0.5 },
+    },
+  ];
+
+  const quickScenarioResults = quickScenarios.map((scenarioItem) => {
+    const result = scenarioModel(scenarioItem.values);
+    const deficitDelta = result.deficitPct - BASE.deficitPct;
+    return {
+      ...scenarioItem,
+      result,
+      deficitDelta,
+      tone: deficitDelta <= 0 ? "good" : "bad",
+    };
+  });
+
+  const impactInfographics = [
+    {
+      label: "Presiune pe deficit",
+      value: scenario.deficitPct,
+      base: BASE.deficitPct,
+      max: 9,
+      unit: "% PIB",
+    },
+    {
+      label: "Presiune pe datorie",
+      value: scenario.debtPct,
+      base: BASE.debtPct,
+      max: 70,
+      unit: "% PIB",
+    },
+    {
+      label: "Spațiu fiscal (venituri/cheltuieli)",
+      value: (scenario.revenues / scenario.expenditures) * 100,
+      base: (BASE.revenues / baseExpenditure) * 100,
+      max: 100,
+      unit: "%",
+    },
+  ];
 
   const cards = [
     {
@@ -407,6 +480,64 @@ export default function Page() {
         </div>
       </section>
 
+      <section className="section section-tight">
+        <div className="container">
+          <Card className="pad-lg">
+            <div className="eyebrow">Simulări rapide (sus)</div>
+            <h2>Scenarii multiple cu impact vizibil imediat</h2>
+            <div className="quick-sim-grid">
+              {quickScenarioResults.map((item) => (
+                <button
+                  key={item.name}
+                  type="button"
+                  className={`quick-sim-card ${item.tone}`}
+                  onClick={() => {
+                    setGrowthShock(item.values.growthShock);
+                    setInflationShock(item.values.inflationShock);
+                    setCollectionShock(item.values.collectionShock);
+                    setInterestShock(item.values.interestShock);
+                  }}
+                >
+                  <div className="quick-sim-title">{item.name}</div>
+                  <div className="small">{item.subtitle}</div>
+                  <div className="quick-sim-value">{fmtPct(item.result.deficitPct)}</div>
+                  <div className={`delta ${item.tone}`}>
+                    Impact deficit: {item.deficitDelta > 0 ? "+" : ""}
+                    {item.deficitDelta.toFixed(2)} pp
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="infographic-grid">
+              {impactInfographics.map((metric) => {
+                const width = Math.max(6, Math.min(100, (metric.value / metric.max) * 100));
+                const delta = metric.value - metric.base;
+                return (
+                  <div key={metric.label} className="infographic-card">
+                    <div className="infographic-head">
+                      <span>{metric.label}</span>
+                      <strong>
+                        {metric.value.toFixed(1)} {metric.unit}
+                      </strong>
+                    </div>
+                    <div className="infographic-track">
+                      <div className="infographic-fill" style={{ width: `${width}%` }} />
+                    </div>
+                    <div className={`delta ${delta <= 0 ? "good" : "bad"}`}>
+                      {delta <= 0 ? <TrendingDown className="icon-xs" /> : <TrendingUp className="icon-xs" />}
+                      Față de bază: {delta > 0 ? "+" : ""}
+                      {delta.toFixed(2)}
+                      {metric.unit}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+        </div>
+      </section>
+
       <section className="section">
         <div className="container grid-4">
           {cards.map((card) => (
@@ -557,6 +688,22 @@ export default function Page() {
                     {preset.label}
                   </button>
                 ))}
+                <button
+                  className="preset-btn psd-btn"
+                  type="button"
+                  onClick={() => {
+                    setGrowthShock(psdMeasuresScenario.growthShock);
+                    setInflationShock(psdMeasuresScenario.inflationShock);
+                    setCollectionShock(psdMeasuresScenario.collectionShock);
+                    setInterestShock(psdMeasuresScenario.interestShock);
+                  }}
+                >
+                  Impact măsuri PSD
+                </button>
+              </div>
+              <div className="psd-note">
+                Scenariu ilustrativ pentru măsuri solicitate public de PSD; impact estimat:
+                <strong> {psdDeltaPct > 0 ? "+" : ""}{psdDeltaPct.toFixed(2)} pp</strong> la deficit față de bază.
               </div>
 
               <SliderControl
