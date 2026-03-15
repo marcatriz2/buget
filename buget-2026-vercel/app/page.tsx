@@ -20,6 +20,9 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -194,6 +197,21 @@ export default function Page() {
   const [collectionShock, setCollectionShock] = useState(0);
   const [interestShock, setInterestShock] = useState(0);
 
+  const scenarioPresets = [
+    {
+      label: "Scenariu de bază",
+      values: { growthShock: 0, inflationShock: 0, collectionShock: 0, interestShock: 0 },
+    },
+    {
+      label: "Optimist",
+      values: { growthShock: 1.4, inflationShock: -0.4, collectionShock: 1.2, interestShock: -2 },
+    },
+    {
+      label: "Pesimist",
+      values: { growthShock: -1.5, inflationShock: 1.1, collectionShock: -1.2, interestShock: 4 },
+    },
+  ];
+
   const scenario = useMemo(
     () =>
       scenarioModel({
@@ -305,6 +323,39 @@ export default function Page() {
         collectionShock: 0,
         interestShock: 0,
       }).deficitPct,
+    },
+  ];
+
+  const fiscalMixData = [
+    { label: "Bază", venituri: BASE.revenues, cheltuieli: baseExpenditure },
+    { label: "Scenariu", venituri: scenario.revenues, cheltuieli: scenario.expenditures },
+  ];
+
+  const trajectoryData = [
+    {
+      step: "Bază",
+      deficitPct: BASE.deficitPct,
+      debtPct: BASE.debtPct,
+    },
+    {
+      step: "+ Creștere",
+      deficitPct: scenarioModel({ growthShock, inflationShock: 0, collectionShock: 0, interestShock: 0 }).deficitPct,
+      debtPct: scenarioModel({ growthShock, inflationShock: 0, collectionShock: 0, interestShock: 0 }).debtPct,
+    },
+    {
+      step: "+ Inflație",
+      deficitPct: scenarioModel({ growthShock, inflationShock, collectionShock: 0, interestShock: 0 }).deficitPct,
+      debtPct: scenarioModel({ growthShock, inflationShock, collectionShock: 0, interestShock: 0 }).debtPct,
+    },
+    {
+      step: "+ Colectare",
+      deficitPct: scenarioModel({ growthShock, inflationShock, collectionShock, interestShock: 0 }).deficitPct,
+      debtPct: scenarioModel({ growthShock, inflationShock, collectionShock, interestShock: 0 }).debtPct,
+    },
+    {
+      step: "Final",
+      deficitPct: scenario.deficitPct,
+      debtPct: scenario.debtPct,
     },
   ];
 
@@ -490,6 +541,24 @@ export default function Page() {
                 efectelor, nu o prognoză oficială a Ministerului Finanțelor.
               </div>
 
+              <div className="preset-row">
+                {scenarioPresets.map((preset) => (
+                  <button
+                    key={preset.label}
+                    className="preset-btn"
+                    type="button"
+                    onClick={() => {
+                      setGrowthShock(preset.values.growthShock);
+                      setInflationShock(preset.values.inflationShock);
+                      setCollectionShock(preset.values.collectionShock);
+                      setInterestShock(preset.values.interestShock);
+                    }}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+
               <SliderControl
                 label="Șoc de creștere reală (pp)"
                 value={growthShock}
@@ -596,6 +665,49 @@ export default function Page() {
                   <ReferenceLine y={0} stroke="#0f172a" />
                   <Bar dataKey="impact" fill="#94a3b8" radius={[8, 8, 0, 0]} />
                 </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </div>
+      </section>
+
+      <section className="section">
+        <div className="container grid-2">
+          <Card>
+            <div className="card-header">
+              <h3>Venituri vs. cheltuieli: bază vs. scenariu</h3>
+            </div>
+            <div className="chart-wrap">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={fiscalMixData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="label" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => [`${Number(value).toFixed(1)} mld. lei`, ""]} />
+                  <Legend />
+                  <Bar dataKey="venituri" fill="#16a34a" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="cheltuieli" fill="#dc2626" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+
+          <Card>
+            <div className="card-header">
+              <h3>Evoluția până la scenariul final</h3>
+            </div>
+            <div className="chart-wrap">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={trajectoryData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="step" />
+                  <YAxis yAxisId="left" domain={[4.5, 9]} />
+                  <YAxis yAxisId="right" orientation="right" domain={[55, 70]} />
+                  <Tooltip formatter={(value) => [`${Number(value).toFixed(2)}%`, "Valoare"]} />
+                  <Legend />
+                  <Line yAxisId="left" type="monotone" dataKey="deficitPct" name="Deficit (% PIB)" stroke="#1d4ed8" strokeWidth={3} dot={{ r: 4 }} />
+                  <Line yAxisId="right" type="monotone" dataKey="debtPct" name="Datorie (% PIB)" stroke="#7c3aed" strokeWidth={3} dot={{ r: 4 }} />
+                </LineChart>
               </ResponsiveContainer>
             </div>
           </Card>
