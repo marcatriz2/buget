@@ -213,10 +213,10 @@ export default function Page() {
   ];
 
   const psdMeasuresScenario = {
-    growthShock: 0.7,
-    inflationShock: 0.4,
-    collectionShock: -0.3,
-    interestShock: 2.2,
+    growthShock: 0.2,
+    inflationShock: 0.6,
+    collectionShock: -0.8,
+    interestShock: 4.5,
   };
 
   const scenario = useMemo(
@@ -235,6 +235,13 @@ export default function Page() {
 
   const psdImpact = scenarioModel(psdMeasuresScenario);
   const psdDeltaPct = psdImpact.deficitPct - BASE.deficitPct;
+
+  const psdExtraMeasures = [
+    "Creșterea salariului minim, cu efect direct în cheltuielile sectorului public și în costurile contractelor indexate.",
+    "Pachet de ajutoare punctuale pentru pensionari cu venituri mici.",
+    "Menținerea/extinderea sprijinului social pentru familii vulnerabile (alocații și programe țintite).",
+    "Protejarea unor programe de investiții locale și de dezvoltare regională.",
+  ];
 
   const quickScenarios = [
     {
@@ -702,8 +709,18 @@ export default function Page() {
                 </button>
               </div>
               <div className="psd-note">
-                Scenariu ilustrativ pentru măsuri solicitate public de PSD; impact estimat:
-                <strong> {psdDeltaPct > 0 ? "+" : ""}{psdDeltaPct.toFixed(2)} pp</strong> la deficit față de bază.
+                Scenariu ilustrativ pentru măsuri solicitate public de PSD. În această calibrare,
+                impactul estimat <strong>crește deficitul</strong> cu
+                <strong> {psdDeltaPct > 0 ? "+" : ""}{psdDeltaPct.toFixed(2)} pp</strong> față de bază.
+              </div>
+
+              <div className="psd-measures-box">
+                <div className="info-title">Măsuri suplimentare cerute de PSD (sinteză publică)</div>
+                <ul>
+                  {psdExtraMeasures.map((measure) => (
+                    <li key={measure} className="small">{measure}</li>
+                  ))}
+                </ul>
               </div>
 
               <SliderControl

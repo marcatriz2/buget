@@ -284,6 +284,21 @@ h2 {
   line-height: 1.6;
 }
 
+.psd-measures-box {
+  margin-top: 12px;
+  border: 1px solid #fecaca;
+  background: #fff1f2;
+  border-radius: 14px;
+  padding: 12px 14px;
+}
+
+.psd-measures-box ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+
 
 
 .quick-sim-grid {
