@@ -261,6 +261,28 @@ export default function Page() {
     interestShock: 4.5,
   };
 
+  const scenarioPresets = [
+    {
+      label: "Scenariu de bază",
+      values: { growthShock: 0, inflationShock: 0, collectionShock: 0, interestShock: 0 },
+    },
+    {
+      label: "Optimist",
+      values: { growthShock: 1.4, inflationShock: -0.4, collectionShock: 1.2, interestShock: -2 },
+    },
+    {
+      label: "Pesimist",
+      values: { growthShock: -1.5, inflationShock: 1.1, collectionShock: -1.2, interestShock: 4 },
+    },
+  ];
+
+  const psdMeasuresScenario = {
+    growthShock: 0.2,
+    inflationShock: 0.6,
+    collectionShock: -0.8,
+    interestShock: 4.5,
+  };
+
   const scenario = useMemo(
     () =>
       scenarioModel({
