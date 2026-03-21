@@ -53,6 +53,26 @@ type MarketData = {
   error?: string;
 };
 
+type MacroData = {
+  updatedAt: string;
+  latest: {
+    year: string;
+    gdpGrowth: number | null;
+    inflation: number | null;
+    unemployment: number | null;
+    debt: number | null;
+  };
+  timeline: Array<{
+    year: string;
+    gdpGrowth: number | null;
+    inflation: number | null;
+    unemployment: number | null;
+    debt: number | null;
+  }>;
+  fx: { eurRon: number; usdRon: number };
+  fallback?: boolean;
+};
+
 const BASE = {
   gdp: 2045.186,
   revenues: 736.532,
@@ -219,6 +239,8 @@ export default function Page() {
   const [marketData, setMarketData] = useState<MarketData | null>(null);
   const [marketLoading, setMarketLoading] = useState(false);
   const [marketError, setMarketError] = useState<string | null>(null);
+  const [macroData, setMacroData] = useState<MacroData | null>(null);
+  const [macroError, setMacroError] = useState<string | null>(null);
 
   const refreshMarketData = async () => {
     try {
@@ -235,8 +257,21 @@ export default function Page() {
     }
   };
 
+  const refreshMacroData = async () => {
+    try {
+      setMacroError(null);
+      const response = await fetch("/api/macro-dashboard", { cache: "no-store" });
+      if (!response.ok) throw new Error("Nu am putut actualiza dashboardul macro.");
+      const data = (await response.json()) as MacroData;
+      setMacroData(data);
+    } catch (error) {
+      setMacroError(error instanceof Error ? error.message : "Eroare la dashboardul macro.");
+    }
+  };
+
   useEffect(() => {
     refreshMarketData();
+    refreshMacroData();
   }, []);
 
   const scenarioPresets = [
@@ -348,16 +383,32 @@ export default function Page() {
     },
   ];
 
-  const parliamentUpdate = {
-    title: "Update parlamentar · martie 2026",
-    highlights: [
-      "PIB de referință: ~2.045 mld. lei.",
-      "Țintă deficit cash: 6,2% din PIB.",
-      "Investiții publice: ~164 mld. lei.",
-      "Salariul minim anunțat: 4.325 lei brut (de la 1 iulie).",
-    ],
-    socialDebate: "În negocierile parlamentare au fost cerute fonduri sociale suplimentare (aprox. 3 mld. lei).",
-  };
+  const macroCards = [
+    {
+      title: "Creștere economică reală",
+      value: macroData?.latest.gdpGrowth,
+      unit: "%",
+      note: "Ultimul an raportat (World Bank)",
+    },
+    {
+      title: "Inflație medie anuală",
+      value: macroData?.latest.inflation,
+      unit: "%",
+      note: "Indice prețuri de consum",
+    },
+    {
+      title: "Rata șomajului",
+      value: macroData?.latest.unemployment,
+      unit: "%",
+      note: "Forța de muncă totală",
+    },
+    {
+      title: "Datorie guvernamentală",
+      value: macroData?.latest.debt,
+      unit: "% PIB",
+      note: "Datorie publică totală",
+    },
+  ];
 
   const cards = [
     {
@@ -625,21 +676,93 @@ export default function Page() {
 
       <section className="section section-tight">
         <div className="container">
-          <Card className="parliament-update-card">
-            <div className="parliament-update-head">
-              <div className="eyebrow">Status buget 2026</div>
-              <Badge>{parliamentUpdate.title}</Badge>
+          <Card className="macro-card">
+            <div className="market-header-row">
+              <div>
+                <div className="eyebrow">Dashboard macro live (date externe)</div>
+                <h3>Creștere, inflație, șomaj, datorie + curs valutar actualizat</h3>
+              </div>
+              <button className="update-btn" type="button" onClick={refreshMacroData}>
+                Refresh macro
+              </button>
             </div>
-            <div className="parliament-grid">
-              {parliamentUpdate.highlights.map((item) => (
-                <div key={item} className="info-box small">{item}</div>
+
+            {macroError && <div className="market-error">{macroError}</div>}
+
+            <div className="market-price-grid">
+              {macroCards.map((item) => (
+                <div key={item.title} className="market-price-box">
+                  <div className="small">{item.title}</div>
+                  <div className="market-value">
+                    {item.value !== null && item.value !== undefined
+                      ? `${item.value.toFixed(1)} ${item.unit}`
+                      : "-"}
+                  </div>
+                  <div className="small">{item.note}</div>
+                </div>
               ))}
             </div>
-            <div className="parliament-note">
-              {parliamentUpdate.socialDebate}
-              <span>
-                Sursă: comunicări publice Digi24 / TVR Info privind dezbaterea și votul din Parlament.
-              </span>
+
+            <div className="grid-2 market-chart-grid">
+              <Card>
+                <div className="card-header">
+                  <h3>Creștere vs inflație (istoric)</h3>
+                </div>
+                <div className="chart-wrap">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={macroData?.timeline ?? []}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="year" />
+                      <YAxis />
+                      <Tooltip formatter={(value) => [`${Number(value).toFixed(1)}%`, ""]} />
+                      <Legend />
+                      <Line type="monotone" dataKey="gdpGrowth" name="PIB real" stroke="#0f766e" strokeWidth={3} />
+                      <Line type="monotone" dataKey="inflation" name="Inflație" stroke="#ea580c" strokeWidth={3} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+
+              <Card>
+                <div className="card-header">
+                  <h3>Șomaj și datorie (% din PIB)</h3>
+                </div>
+                <div className="chart-wrap">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={macroData?.timeline ?? []}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="year" />
+                      <YAxis />
+                      <Tooltip formatter={(value) => [`${Number(value).toFixed(1)}%`, ""]} />
+                      <Legend />
+                      <Bar dataKey="unemployment" name="Șomaj" fill="#2563eb" radius={[6, 6, 0, 0]} />
+                      <Bar dataKey="debt" name="Datorie" fill="#7c3aed" radius={[6, 6, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+            </div>
+
+            <div className="fx-row">
+              <div className="info-box">
+                <div className="info-title">EUR/RON</div>
+                <div className="scenario-value">
+                  {macroData ? macroData.fx.eurRon.toFixed(4) : "-"}
+                </div>
+              </div>
+              <div className="info-box">
+                <div className="info-title">USD/RON</div>
+                <div className="scenario-value">
+                  {macroData ? macroData.fx.usdRon.toFixed(4) : "-"}
+                </div>
+              </div>
+            </div>
+
+            <div className="market-footnote small">
+              Ultima actualizare macro: {macroData ? new Date(macroData.updatedAt).toLocaleString("ro-RO") : "-"}.
+              {macroData?.fallback ? " Date de rezervă afișate temporar." : ""} Surse:
+              <a href="https://api.worldbank.org" target="_blank" rel="noreferrer"> World Bank API</a>,
+              <a href="https://api.frankfurter.app" target="_blank" rel="noreferrer"> Frankfurter FX</a>.
             </div>
           </Card>
         </div>
