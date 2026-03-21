@@ -31,3 +31,9 @@ http://localhost:3000
 
 ## Observație
 Simulatorul este un model simplificat de sensibilitate, nu o metodologie oficială a Ministerului Finanțelor.
+
+
+## Checklist rapid pentru deploy pe Vercel
+1. Verifică SHA-ul commitului din GitHub.
+2. Verifică în Vercel că deploymentul rulează pe același SHA.
+3. Dacă diferă, redeploy pe commitul corect sau fă push pe branchul corect.
