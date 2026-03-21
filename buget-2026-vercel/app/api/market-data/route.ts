@@ -41,7 +41,7 @@ function parseNumber(value: string) {
 }
 
 function extractFuelSnapshot(html: string): FuelSnapshot {
-  const averageMatch = html.match(/Preț mediu[\s\S]{0,80}?(\d+[\.,]\d+)\s*Lei/i);
+  const averageMatch = html.match(/Pre(?:ț|t)\s+mediu[\s\S]{0,120}?(\d+[\.,]\d+)\s*Lei/i);
   const pctMatch = html.match(/([+-]?\d+[\.,]\d+)%\s*față\s*de\s*acum\s*30\s*de\s*zile/i);
 
   const omvMatch = html.match(/OMV[\s\S]{0,220}?(\d+[\.,]\d+)\s*Lei/i);
@@ -92,6 +92,10 @@ export async function GET() {
     const benzina = extractFuelSnapshot(benzinaHtml);
     const motorina = extractFuelSnapshot(motorinaHtml);
 
+    if (benzina.average <= 0 || motorina.average <= 0) {
+      throw new Error("Datele live pentru carburanți nu au putut fi parse-ate corect.");
+    }
+
     const fuelWeeklyRaw = [
       ...buildWeeklySeries("Benzină", benzina.average, benzina.pct30d),
       ...buildWeeklySeries("Motorină", motorina.average, motorina.pct30d),
@@ -124,6 +128,10 @@ export async function GET() {
         date: new Date(item.ts * 1000).toISOString().slice(5, 10),
         close: Number(item.close.toFixed(2)),
       }));
+
+    if (brentSeries.length === 0) {
+      throw new Error("Datele Brent nu sunt disponibile momentan.");
+    }
 
     return NextResponse.json({
       updatedAt: new Date().toISOString(),

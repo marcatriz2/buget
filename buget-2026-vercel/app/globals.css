@@ -132,6 +132,13 @@ main { min-height: 100vh; }
   padding: 20px;
 }
 
+.macro-card {
+  border: 1px solid #c7d2fe;
+  border-radius: 24px;
+  background: linear-gradient(180deg, #eef2ff 0%, #ffffff 100%);
+  padding: 20px;
+}
+
 .market-header-row {
   display: flex;
   justify-content: space-between;
@@ -181,6 +188,13 @@ main { min-height: 100vh; }
 
 .market-footnote {
   margin-top: 10px;
+}
+
+.fx-row {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .market-footnote a {
@@ -560,7 +574,8 @@ h2 {
   .quick-sim-grid,
   .infographic-grid,
   .parliament-grid,
-  .market-price-grid {
+  .market-price-grid,
+  .fx-row {
     grid-template-columns: 1fr 1fr;
   }
   .conclusion {
@@ -588,7 +603,8 @@ h2 {
   .quick-sim-grid,
   .infographic-grid,
   .parliament-grid,
-  .market-price-grid {
+  .market-price-grid,
+  .fx-row {
     grid-template-columns: 1fr;
   }
   .pad-lg,
