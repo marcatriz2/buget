@@ -20,6 +20,9 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -194,6 +197,28 @@ export default function Page() {
   const [collectionShock, setCollectionShock] = useState(0);
   const [interestShock, setInterestShock] = useState(0);
 
+  const scenarioPresets = [
+    {
+      label: "Scenariu de bază",
+      values: { growthShock: 0, inflationShock: 0, collectionShock: 0, interestShock: 0 },
+    },
+    {
+      label: "Optimist",
+      values: { growthShock: 1.4, inflationShock: -0.4, collectionShock: 1.2, interestShock: -2 },
+    },
+    {
+      label: "Pesimist",
+      values: { growthShock: -1.5, inflationShock: 1.1, collectionShock: -1.2, interestShock: 4 },
+    },
+  ];
+
+  const psdMeasuresScenario = {
+    growthShock: 0.2,
+    inflationShock: 0.6,
+    collectionShock: -0.8,
+    interestShock: 4.5,
+  };
+
   const scenario = useMemo(
     () =>
       scenarioModel({
@@ -207,6 +232,90 @@ export default function Page() {
 
   const deltaPct = scenario.deficitPct - BASE.deficitPct;
   const deltaNominal = scenario.deficitNominal - baseNominalDeficit;
+
+  const psdImpact = scenarioModel(psdMeasuresScenario);
+  const psdDeltaPct = psdImpact.deficitPct - BASE.deficitPct;
+
+  const psdExtraMeasures = [
+    "Creșterea salariului minim, cu efect direct în cheltuielile sectorului public și în costurile contractelor indexate.",
+    "Pachet de ajutoare punctuale pentru pensionari cu venituri mici.",
+    "Menținerea/extinderea sprijinului social pentru familii vulnerabile (alocații și programe țintite).",
+    "Protejarea unor programe de investiții locale și de dezvoltare regională.",
+  ];
+
+  const quickScenarios = [
+    {
+      name: "Accelerare economică",
+      subtitle: "Creștere peste ipoteza de bază",
+      values: { growthShock: 1.8, inflationShock: -0.3, collectionShock: 0.9, interestShock: -1.5 },
+    },
+    {
+      name: "Inflație persistentă",
+      subtitle: "Inflație mai ridicată + costuri mai mari",
+      values: { growthShock: -0.5, inflationShock: 1.6, collectionShock: -0.4, interestShock: 2.5 },
+    },
+    {
+      name: "Colectare excelentă",
+      subtitle: "ANAF peste plan",
+      values: { growthShock: 0.4, inflationShock: 0, collectionShock: 1.8, interestShock: 0 },
+    },
+    {
+      name: "Șoc de dobânzi",
+      subtitle: "Piață financiară tensionată",
+      values: { growthShock: -0.7, inflationShock: 0.5, collectionShock: -0.8, interestShock: 6 },
+    },
+    {
+      name: "Aterizare lină",
+      subtitle: "Mix moderat favorabil",
+      values: { growthShock: 0.8, inflationShock: -0.2, collectionShock: 0.7, interestShock: -0.5 },
+    },
+  ];
+
+  const quickScenarioResults = quickScenarios.map((scenarioItem) => {
+    const result = scenarioModel(scenarioItem.values);
+    const deficitDelta = result.deficitPct - BASE.deficitPct;
+    return {
+      ...scenarioItem,
+      result,
+      deficitDelta,
+      tone: deficitDelta <= 0 ? "good" : "bad",
+    };
+  });
+
+  const impactInfographics = [
+    {
+      label: "Presiune pe deficit",
+      value: scenario.deficitPct,
+      base: BASE.deficitPct,
+      max: 9,
+      unit: "% PIB",
+    },
+    {
+      label: "Presiune pe datorie",
+      value: scenario.debtPct,
+      base: BASE.debtPct,
+      max: 70,
+      unit: "% PIB",
+    },
+    {
+      label: "Spațiu fiscal (venituri/cheltuieli)",
+      value: (scenario.revenues / scenario.expenditures) * 100,
+      base: (BASE.revenues / baseExpenditure) * 100,
+      max: 100,
+      unit: "%",
+    },
+  ];
+
+  const parliamentUpdate = {
+    title: "Update parlamentar · martie 2026",
+    highlights: [
+      "PIB de referință: ~2.045 mld. lei.",
+      "Țintă deficit cash: 6,2% din PIB.",
+      "Investiții publice: ~164 mld. lei.",
+      "Salariul minim anunțat: 4.325 lei brut (de la 1 iulie).",
+    ],
+    socialDebate: "În negocierile parlamentare au fost cerute fonduri sociale suplimentare (aprox. 3 mld. lei).",
+  };
 
   const cards = [
     {
@@ -308,6 +417,39 @@ export default function Page() {
     },
   ];
 
+  const fiscalMixData = [
+    { label: "Bază", venituri: BASE.revenues, cheltuieli: baseExpenditure },
+    { label: "Scenariu", venituri: scenario.revenues, cheltuieli: scenario.expenditures },
+  ];
+
+  const trajectoryData = [
+    {
+      step: "Bază",
+      deficitPct: BASE.deficitPct,
+      debtPct: BASE.debtPct,
+    },
+    {
+      step: "+ Creștere",
+      deficitPct: scenarioModel({ growthShock, inflationShock: 0, collectionShock: 0, interestShock: 0 }).deficitPct,
+      debtPct: scenarioModel({ growthShock, inflationShock: 0, collectionShock: 0, interestShock: 0 }).debtPct,
+    },
+    {
+      step: "+ Inflație",
+      deficitPct: scenarioModel({ growthShock, inflationShock, collectionShock: 0, interestShock: 0 }).deficitPct,
+      debtPct: scenarioModel({ growthShock, inflationShock, collectionShock: 0, interestShock: 0 }).debtPct,
+    },
+    {
+      step: "+ Colectare",
+      deficitPct: scenarioModel({ growthShock, inflationShock, collectionShock, interestShock: 0 }).deficitPct,
+      debtPct: scenarioModel({ growthShock, inflationShock, collectionShock, interestShock: 0 }).debtPct,
+    },
+    {
+      step: "Final",
+      deficitPct: scenario.deficitPct,
+      debtPct: scenario.debtPct,
+    },
+  ];
+
   return (
     <main>
       <section className="hero">
@@ -353,6 +495,86 @@ export default function Page() {
               icon={Activity}
             />
           </div>
+        </div>
+      </section>
+
+      <section className="section section-tight">
+        <div className="container">
+          <Card className="parliament-update-card">
+            <div className="parliament-update-head">
+              <div className="eyebrow">Status buget 2026</div>
+              <Badge>{parliamentUpdate.title}</Badge>
+            </div>
+            <div className="parliament-grid">
+              {parliamentUpdate.highlights.map((item) => (
+                <div key={item} className="info-box small">{item}</div>
+              ))}
+            </div>
+            <div className="parliament-note">
+              {parliamentUpdate.socialDebate}
+              <span>
+                Sursă: comunicări publice Digi24 / TVR Info privind dezbaterea și votul din Parlament.
+              </span>
+            </div>
+          </Card>
+        </div>
+      </section>
+
+      <section className="section section-tight">
+        <div className="container">
+          <Card className="pad-lg">
+            <div className="eyebrow">Simulări rapide (sus)</div>
+            <h2>Scenarii multiple cu impact vizibil imediat</h2>
+            <div className="quick-sim-grid">
+              {quickScenarioResults.map((item) => (
+                <button
+                  key={item.name}
+                  type="button"
+                  className={`quick-sim-card ${item.tone}`}
+                  onClick={() => {
+                    setGrowthShock(item.values.growthShock);
+                    setInflationShock(item.values.inflationShock);
+                    setCollectionShock(item.values.collectionShock);
+                    setInterestShock(item.values.interestShock);
+                  }}
+                >
+                  <div className="quick-sim-title">{item.name}</div>
+                  <div className="small">{item.subtitle}</div>
+                  <div className="quick-sim-value">{fmtPct(item.result.deficitPct)}</div>
+                  <div className={`delta ${item.tone}`}>
+                    Impact deficit: {item.deficitDelta > 0 ? "+" : ""}
+                    {item.deficitDelta.toFixed(2)} pp
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="infographic-grid">
+              {impactInfographics.map((metric) => {
+                const width = Math.max(6, Math.min(100, (metric.value / metric.max) * 100));
+                const delta = metric.value - metric.base;
+                return (
+                  <div key={metric.label} className="infographic-card">
+                    <div className="infographic-head">
+                      <span>{metric.label}</span>
+                      <strong>
+                        {metric.value.toFixed(1)} {metric.unit}
+                      </strong>
+                    </div>
+                    <div className="infographic-track">
+                      <div className="infographic-fill" style={{ width: `${width}%` }} />
+                    </div>
+                    <div className={`delta ${delta <= 0 ? "good" : "bad"}`}>
+                      {delta <= 0 ? <TrendingDown className="icon-xs" /> : <TrendingUp className="icon-xs" />}
+                      Față de bază: {delta > 0 ? "+" : ""}
+                      {delta.toFixed(2)}
+                      {metric.unit}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
         </div>
       </section>
 
@@ -490,6 +712,50 @@ export default function Page() {
                 efectelor, nu o prognoză oficială a Ministerului Finanțelor.
               </div>
 
+              <div className="preset-row">
+                {scenarioPresets.map((preset) => (
+                  <button
+                    key={preset.label}
+                    className="preset-btn"
+                    type="button"
+                    onClick={() => {
+                      setGrowthShock(preset.values.growthShock);
+                      setInflationShock(preset.values.inflationShock);
+                      setCollectionShock(preset.values.collectionShock);
+                      setInterestShock(preset.values.interestShock);
+                    }}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+                <button
+                  className="preset-btn psd-btn"
+                  type="button"
+                  onClick={() => {
+                    setGrowthShock(psdMeasuresScenario.growthShock);
+                    setInflationShock(psdMeasuresScenario.inflationShock);
+                    setCollectionShock(psdMeasuresScenario.collectionShock);
+                    setInterestShock(psdMeasuresScenario.interestShock);
+                  }}
+                >
+                  Impact măsuri PSD
+                </button>
+              </div>
+              <div className="psd-note">
+                Scenariu ilustrativ pentru măsuri solicitate public de PSD. În această calibrare,
+                impactul estimat <strong>crește deficitul</strong> cu
+                <strong> {psdDeltaPct > 0 ? "+" : ""}{psdDeltaPct.toFixed(2)} pp</strong> față de bază.
+              </div>
+
+              <div className="psd-measures-box">
+                <div className="info-title">Măsuri suplimentare cerute de PSD (sinteză publică)</div>
+                <ul>
+                  {psdExtraMeasures.map((measure) => (
+                    <li key={measure} className="small">{measure}</li>
+                  ))}
+                </ul>
+              </div>
+
               <SliderControl
                 label="Șoc de creștere reală (pp)"
                 value={growthShock}
@@ -596,6 +862,49 @@ export default function Page() {
                   <ReferenceLine y={0} stroke="#0f172a" />
                   <Bar dataKey="impact" fill="#94a3b8" radius={[8, 8, 0, 0]} />
                 </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </div>
+      </section>
+
+      <section className="section">
+        <div className="container grid-2">
+          <Card>
+            <div className="card-header">
+              <h3>Venituri vs. cheltuieli: bază vs. scenariu</h3>
+            </div>
+            <div className="chart-wrap">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={fiscalMixData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="label" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => [`${Number(value).toFixed(1)} mld. lei`, ""]} />
+                  <Legend />
+                  <Bar dataKey="venituri" fill="#16a34a" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="cheltuieli" fill="#dc2626" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+
+          <Card>
+            <div className="card-header">
+              <h3>Evoluția până la scenariul final</h3>
+            </div>
+            <div className="chart-wrap">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={trajectoryData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="step" />
+                  <YAxis yAxisId="left" domain={[4.5, 9]} />
+                  <YAxis yAxisId="right" orientation="right" domain={[55, 70]} />
+                  <Tooltip formatter={(value) => [`${Number(value).toFixed(2)}%`, "Valoare"]} />
+                  <Legend />
+                  <Line yAxisId="left" type="monotone" dataKey="deficitPct" name="Deficit (% PIB)" stroke="#1d4ed8" strokeWidth={3} dot={{ r: 4 }} />
+                  <Line yAxisId="right" type="monotone" dataKey="debtPct" name="Datorie (% PIB)" stroke="#7c3aed" strokeWidth={3} dot={{ r: 4 }} />
+                </LineChart>
               </ResponsiveContainer>
             </div>
           </Card>
