@@ -7,6 +7,10 @@ import {
   ArrowRight,
   Banknote,
   BarChart3,
+  Bitcoin,
+  CandlestickChart,
+  CircleDollarSign,
+  Gauge,
   Landmark,
   Percent,
   Scale,
@@ -71,6 +75,24 @@ type MacroData = {
   }>;
   fx: { eurRon: number; usdRon: number };
   fallback?: boolean;
+};
+
+type LiveBriefData = {
+  updatedAt: string;
+  riskTone: "risk-on" | "risk-off" | "neutral";
+  cards: {
+    sp500: { price: number; changePct: number };
+    us10y: { price: number; changePct: number };
+    gold: { price: number; changePct: number };
+    btc: { price: number; changePct: number };
+    eurUsd: { price: number; changePct: number };
+    brent: { price: number; changePct: number };
+  };
+  sources: {
+    yahooQuote: string;
+  };
+  fallback?: boolean;
+  error?: string;
 };
 
 const BASE = {
@@ -241,6 +263,8 @@ export default function Page() {
   const [marketError, setMarketError] = useState<string | null>(null);
   const [macroData, setMacroData] = useState<MacroData | null>(null);
   const [macroError, setMacroError] = useState<string | null>(null);
+  const [liveBrief, setLiveBrief] = useState<LiveBriefData | null>(null);
+  const [liveBriefError, setLiveBriefError] = useState<string | null>(null);
 
   const refreshMarketData = async () => {
     try {
@@ -269,9 +293,22 @@ export default function Page() {
     }
   };
 
+  const refreshLiveBrief = async () => {
+    try {
+      setLiveBriefError(null);
+      const response = await fetch("/api/live-brief", { cache: "no-store" });
+      if (!response.ok) throw new Error("Nu am putut actualiza pulse-ul de piață.");
+      const data = (await response.json()) as LiveBriefData;
+      setLiveBrief(data);
+    } catch (error) {
+      setLiveBriefError(error instanceof Error ? error.message : "Eroare la pulse-ul live.");
+    }
+  };
+
   useEffect(() => {
     refreshMarketData();
     refreshMacroData();
+    refreshLiveBrief();
   }, []);
 
   const scenarioPresets = [
@@ -543,6 +580,10 @@ export default function Page() {
     },
   ];
 
+  const debtToRevenue = (BASE.stateBudgetDeficit / BASE.stateBudgetRevenue) * 100;
+  const spendCoverage = (BASE.stateBudgetRevenue / BASE.stateBudgetExpense) * 100;
+  const spendingGap = BASE.stateBudgetExpense - BASE.stateBudgetRevenue;
+
   return (
     <main>
       <section className="hero">
@@ -588,6 +629,100 @@ export default function Page() {
               icon={Activity}
             />
           </div>
+        </div>
+      </section>
+
+      <section className="section section-tight">
+        <div className="container">
+          <Card className="macro-card">
+            <div className="market-header-row">
+              <div>
+                <div className="eyebrow">Pulse live global (micro + prețuri)</div>
+                <h3>Active de risc, dobânzi, aur, BTC, FX și petrol</h3>
+              </div>
+              <button className="update-btn" type="button" onClick={refreshLiveBrief}>
+                Refresh pulse
+              </button>
+            </div>
+            {liveBriefError && <div className="market-error">{liveBriefError}</div>}
+
+            <div className="market-price-grid">
+              <div className="market-price-box">
+                <div className="small">S&P 500</div>
+                <div className="market-value">{liveBrief ? liveBrief.cards.sp500.price.toFixed(2) : "-"}</div>
+                <div className={`small ${(liveBrief?.cards.sp500.changePct ?? 0) >= 0 ? "good" : "bad"}`}>
+                  {liveBrief ? `${liveBrief.cards.sp500.changePct > 0 ? "+" : ""}${liveBrief.cards.sp500.changePct.toFixed(2)}%` : "-"}
+                </div>
+              </div>
+              <div className="market-price-box">
+                <div className="small">US 10Y Yield</div>
+                <div className="market-value">{liveBrief ? `${liveBrief.cards.us10y.price.toFixed(2)}%` : "-"}</div>
+                <div className={`small ${(liveBrief?.cards.us10y.changePct ?? 0) <= 0 ? "good" : "bad"}`}>
+                  {liveBrief ? `${liveBrief.cards.us10y.changePct > 0 ? "+" : ""}${liveBrief.cards.us10y.changePct.toFixed(2)}%` : "-"}
+                </div>
+              </div>
+              <div className="market-price-box">
+                <div className="small">Aur (XAUUSD)</div>
+                <div className="market-value">{liveBrief ? `${liveBrief.cards.gold.price.toFixed(2)} USD` : "-"}</div>
+                <div className={`small ${(liveBrief?.cards.gold.changePct ?? 0) >= 0 ? "good" : "bad"}`}>
+                  {liveBrief ? `${liveBrief.cards.gold.changePct > 0 ? "+" : ""}${liveBrief.cards.gold.changePct.toFixed(2)}%` : "-"}
+                </div>
+              </div>
+              <div className="market-price-box">
+                <div className="small">BTC-USD</div>
+                <div className="market-value">{liveBrief ? `${liveBrief.cards.btc.price.toFixed(0)} USD` : "-"}</div>
+                <div className={`small ${(liveBrief?.cards.btc.changePct ?? 0) >= 0 ? "good" : "bad"}`}>
+                  {liveBrief ? `${liveBrief.cards.btc.changePct > 0 ? "+" : ""}${liveBrief.cards.btc.changePct.toFixed(2)}%` : "-"}
+                </div>
+              </div>
+            </div>
+
+            <div className="grid-2 market-chart-grid">
+              <Card>
+                <div className="card-body stack">
+                  <div className="info-box">
+                    <div className="info-title">Regim de piață</div>
+                    <div className={`scenario-value ${liveBrief?.riskTone === "risk-on" ? "good" : liveBrief?.riskTone === "risk-off" ? "bad" : ""}`}>
+                      {liveBrief?.riskTone === "risk-on" ? "RISK-ON" : liveBrief?.riskTone === "risk-off" ? "RISK-OFF" : "NEUTRU"}
+                    </div>
+                    <div className="small">
+                      Sintetizat din semnalul acțiuni + dobânzi + petrol + USD. Nu este recomandare de investiții.
+                    </div>
+                  </div>
+                  <div className="info-box">
+                    <div className="info-title">EUR/USD</div>
+                    <div className="scenario-value">{liveBrief ? liveBrief.cards.eurUsd.price.toFixed(4) : "-"}</div>
+                    <div className="small">
+                      Variație zi: {liveBrief ? `${liveBrief.cards.eurUsd.changePct > 0 ? "+" : ""}${liveBrief.cards.eurUsd.changePct.toFixed(2)}%` : "-"}
+                    </div>
+                  </div>
+                  <div className="info-box">
+                    <div className="info-title">Brent spot futures</div>
+                    <div className="scenario-value">{liveBrief ? `${liveBrief.cards.brent.price.toFixed(2)} USD` : "-"}</div>
+                    <div className="small">
+                      Variație zi: {liveBrief ? `${liveBrief.cards.brent.changePct > 0 ? "+" : ""}${liveBrief.cards.brent.changePct.toFixed(2)}%` : "-"}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+              <Card>
+                <div className="card-body stack">
+                  <div className="info-box">
+                    <div className="info-title">De ce e relevant pentru buget</div>
+                    <div className="small">• Dobânzi mai mari = cost mai mare cu datoria nouă.</div>
+                    <div className="small">• Petrolul urcă = presiune pe inflație și transport.</div>
+                    <div className="small">• EUR/USD mișcă importurile și costurile energetice.</div>
+                    <div className="small">• Risk-off global reduce apetitul pentru piețele emergente.</div>
+                  </div>
+                  <div className="market-footnote small">
+                    Ultima actualizare pulse: {liveBrief ? new Date(liveBrief.updatedAt).toLocaleString("ro-RO") : "-"}.
+                    {liveBrief?.fallback ? " Date de rezervă afișate temporar." : ""} Sursă:
+                    <a href={liveBrief?.sources.yahooQuote ?? "https://query1.finance.yahoo.com/v7/finance/quote"} target="_blank" rel="noreferrer"> Yahoo Finance Quote API</a>.
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </Card>
         </div>
       </section>
 
@@ -828,6 +963,30 @@ export default function Page() {
 
       <section className="section">
         <div className="container grid-4">
+          <StatCard
+            title="Acoperire venituri/cheltuieli"
+            value={`${spendCoverage.toFixed(1)}%`}
+            sub="Cât din cheltuieli sunt acoperite din venituri curente"
+            icon={Gauge}
+          />
+          <StatCard
+            title="Gol nominal de finanțare"
+            value={`${spendingGap.toFixed(1)} mld. lei`}
+            sub="Diferența anuală cheltuieli minus venituri"
+            icon={CircleDollarSign}
+          />
+          <StatCard
+            title="Deficit / venituri"
+            value={`${debtToRevenue.toFixed(1)}%`}
+            sub="Ponderea deficitului în veniturile bugetului de stat"
+            icon={CandlestickChart}
+          />
+          <StatCard
+            title="Sensibilitate la piețe"
+            value={liveBrief?.riskTone === "risk-off" ? "Ridicată" : liveBrief?.riskTone === "risk-on" ? "Moderată" : "Neutră"}
+            sub="Indicator calitativ din pulse-ul global live"
+            icon={Bitcoin}
+          />
           {cards.map((card) => (
             <StatCard key={card.title} {...card} />
           ))}
