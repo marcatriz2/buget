@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -20,6 +20,9 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -29,6 +32,26 @@ import {
 
 const fmtBn = (n: number) => `${n.toFixed(1)} mld. lei`;
 const fmtPct = (n: number) => `${n.toFixed(1)}%`;
+
+
+type MarketData = {
+  updatedAt: string;
+  cards: {
+    omvBenzina: number;
+    omvMotorina: number;
+    petromBenzina: number;
+    petromMotorina: number;
+  };
+  weeklyFuelSeries: Array<{ week: string; benzina: number; motorina: number }>;
+  brentSeries: Array<{ date: string; close: number }>;
+  sources: {
+    benzina: string;
+    motorina: string;
+    brent: string;
+  };
+  fallback?: boolean;
+  error?: string;
+};
 
 const BASE = {
   gdp: 2045.186,
@@ -193,6 +216,50 @@ export default function Page() {
   const [inflationShock, setInflationShock] = useState(0);
   const [collectionShock, setCollectionShock] = useState(0);
   const [interestShock, setInterestShock] = useState(0);
+  const [marketData, setMarketData] = useState<MarketData | null>(null);
+  const [marketLoading, setMarketLoading] = useState(false);
+  const [marketError, setMarketError] = useState<string | null>(null);
+
+  const refreshMarketData = async () => {
+    try {
+      setMarketLoading(true);
+      setMarketError(null);
+      const response = await fetch("/api/market-data", { cache: "no-store" });
+      if (!response.ok) throw new Error("Nu am putut actualiza datele din piață.");
+      const data = (await response.json()) as MarketData;
+      setMarketData(data);
+    } catch (error) {
+      setMarketError(error instanceof Error ? error.message : "Eroare la actualizare.");
+    } finally {
+      setMarketLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshMarketData();
+  }, []);
+
+  const scenarioPresets = [
+    {
+      label: "Scenariu de bază",
+      values: { growthShock: 0, inflationShock: 0, collectionShock: 0, interestShock: 0 },
+    },
+    {
+      label: "Optimist",
+      values: { growthShock: 1.4, inflationShock: -0.4, collectionShock: 1.2, interestShock: -2 },
+    },
+    {
+      label: "Pesimist",
+      values: { growthShock: -1.5, inflationShock: 1.1, collectionShock: -1.2, interestShock: 4 },
+    },
+  ];
+
+  const psdMeasuresScenario = {
+    growthShock: 0.2,
+    inflationShock: 0.6,
+    collectionShock: -0.8,
+    interestShock: 4.5,
+  };
 
   const scenario = useMemo(
     () =>
@@ -208,17 +275,101 @@ export default function Page() {
   const deltaPct = scenario.deficitPct - BASE.deficitPct;
   const deltaNominal = scenario.deficitNominal - baseNominalDeficit;
 
+  const psdImpact = scenarioModel(psdMeasuresScenario);
+  const psdDeltaPct = psdImpact.deficitPct - BASE.deficitPct;
+
+  const psdExtraMeasures = [
+    "Creșterea salariului minim, cu efect direct în cheltuielile sectorului public și în costurile contractelor indexate.",
+    "Pachet de ajutoare punctuale pentru pensionari cu venituri mici.",
+    "Menținerea/extinderea sprijinului social pentru familii vulnerabile (alocații și programe țintite).",
+    "Protejarea unor programe de investiții locale și de dezvoltare regională.",
+  ];
+
+  const quickScenarios = [
+    {
+      name: "Accelerare economică",
+      subtitle: "Creștere peste ipoteza de bază",
+      values: { growthShock: 1.8, inflationShock: -0.3, collectionShock: 0.9, interestShock: -1.5 },
+    },
+    {
+      name: "Inflație persistentă",
+      subtitle: "Inflație mai ridicată + costuri mai mari",
+      values: { growthShock: -0.5, inflationShock: 1.6, collectionShock: -0.4, interestShock: 2.5 },
+    },
+    {
+      name: "Colectare excelentă",
+      subtitle: "ANAF peste plan",
+      values: { growthShock: 0.4, inflationShock: 0, collectionShock: 1.8, interestShock: 0 },
+    },
+    {
+      name: "Șoc de dobânzi",
+      subtitle: "Piață financiară tensionată",
+      values: { growthShock: -0.7, inflationShock: 0.5, collectionShock: -0.8, interestShock: 6 },
+    },
+    {
+      name: "Aterizare lină",
+      subtitle: "Mix moderat favorabil",
+      values: { growthShock: 0.8, inflationShock: -0.2, collectionShock: 0.7, interestShock: -0.5 },
+    },
+  ];
+
+  const quickScenarioResults = quickScenarios.map((scenarioItem) => {
+    const result = scenarioModel(scenarioItem.values);
+    const deficitDelta = result.deficitPct - BASE.deficitPct;
+    return {
+      ...scenarioItem,
+      result,
+      deficitDelta,
+      tone: deficitDelta <= 0 ? "good" : "bad",
+    };
+  });
+
+  const impactInfographics = [
+    {
+      label: "Presiune pe deficit",
+      value: scenario.deficitPct,
+      base: BASE.deficitPct,
+      max: 9,
+      unit: "% PIB",
+    },
+    {
+      label: "Presiune pe datorie",
+      value: scenario.debtPct,
+      base: BASE.debtPct,
+      max: 70,
+      unit: "% PIB",
+    },
+    {
+      label: "Spațiu fiscal (venituri/cheltuieli)",
+      value: (scenario.revenues / scenario.expenditures) * 100,
+      base: (BASE.revenues / baseExpenditure) * 100,
+      max: 100,
+      unit: "%",
+    },
+  ];
+
+  const parliamentUpdate = {
+    title: "Update parlamentar · martie 2026",
+    highlights: [
+      "PIB de referință: ~2.045 mld. lei.",
+      "Țintă deficit cash: 6,2% din PIB.",
+      "Investiții publice: ~164 mld. lei.",
+      "Salariul minim anunțat: 4.325 lei brut (de la 1 iulie).",
+    ],
+    socialDebate: "În negocierile parlamentare au fost cerute fonduri sociale suplimentare (aprox. 3 mld. lei).",
+  };
+
   const cards = [
     {
       title: "Venituri buget de stat",
       value: fmtBn(BASE.stateBudgetRevenue),
-      sub: "Nivelul din proiectul legii bugetului de stat 2026",
+      sub: "Nivelul din forma finală a legii bugetului de stat 2026",
       icon: Wallet,
     },
     {
       title: "Cheltuieli buget de stat",
       value: fmtBn(BASE.stateBudgetExpense),
-      sub: "Credite bugetare autorizate prin proiect",
+      sub: "Credite bugetare autorizate prin forma finală",
       icon: Landmark,
     },
     {
@@ -308,19 +459,52 @@ export default function Page() {
     },
   ];
 
+  const fiscalMixData = [
+    { label: "Bază", venituri: BASE.revenues, cheltuieli: baseExpenditure },
+    { label: "Scenariu", venituri: scenario.revenues, cheltuieli: scenario.expenditures },
+  ];
+
+  const trajectoryData = [
+    {
+      step: "Bază",
+      deficitPct: BASE.deficitPct,
+      debtPct: BASE.debtPct,
+    },
+    {
+      step: "+ Creștere",
+      deficitPct: scenarioModel({ growthShock, inflationShock: 0, collectionShock: 0, interestShock: 0 }).deficitPct,
+      debtPct: scenarioModel({ growthShock, inflationShock: 0, collectionShock: 0, interestShock: 0 }).debtPct,
+    },
+    {
+      step: "+ Inflație",
+      deficitPct: scenarioModel({ growthShock, inflationShock, collectionShock: 0, interestShock: 0 }).deficitPct,
+      debtPct: scenarioModel({ growthShock, inflationShock, collectionShock: 0, interestShock: 0 }).debtPct,
+    },
+    {
+      step: "+ Colectare",
+      deficitPct: scenarioModel({ growthShock, inflationShock, collectionShock, interestShock: 0 }).deficitPct,
+      debtPct: scenarioModel({ growthShock, inflationShock, collectionShock, interestShock: 0 }).debtPct,
+    },
+    {
+      step: "Final",
+      deficitPct: scenario.deficitPct,
+      debtPct: scenario.debtPct,
+    },
+  ];
+
   return (
     <main>
       <section className="hero">
         <div className="hero-overlay" />
         <div className="container hero-inner">
           <div className="hero-copy">
-            <Badge>România · Proiect buget 2026</Badge>
+            <Badge>România · Buget de stat 2026 (forma finală)</Badge>
             <h1>
               Bugetul 2026: disciplină fiscală, control central și risc macro
               încă ridicat.
             </h1>
             <p>
-              O prezentare publică a principalelor concluzii din proiectul legii
+              O prezentare publică a principalelor concluzii din forma finală a legii
               bugetului de stat pe 2026, plus un simulator simplificat care
               arată cum se mișcă deficitul dacă se schimbă creșterea, inflația,
               colectarea sau costul dobânzilor.
@@ -353,6 +537,169 @@ export default function Page() {
               icon={Activity}
             />
           </div>
+        </div>
+      </section>
+
+      <section className="section section-tight">
+        <div className="container">
+          <Card className="market-card">
+            <div className="market-header-row">
+              <div>
+                <div className="eyebrow">Prețuri carburanți & petrol (live)</div>
+                <h3>Date curente OMV/Petrom + evoluție ultimele săptămâni</h3>
+              </div>
+              <button className="update-btn" type="button" onClick={refreshMarketData} disabled={marketLoading}>
+                {marketLoading ? "Se actualizează..." : "Update"}
+              </button>
+            </div>
+
+            {marketError && <div className="market-error">{marketError}</div>}
+
+            <div className="market-price-grid">
+              <div className="market-price-box">
+                <div className="small">OMV Benzină</div>
+                <div className="market-value">{marketData ? `${marketData.cards.omvBenzina.toFixed(2)} lei/L` : "-"}</div>
+              </div>
+              <div className="market-price-box">
+                <div className="small">OMV Motorină</div>
+                <div className="market-value">{marketData ? `${marketData.cards.omvMotorina.toFixed(2)} lei/L` : "-"}</div>
+              </div>
+              <div className="market-price-box">
+                <div className="small">Petrom Benzină</div>
+                <div className="market-value">{marketData ? `${marketData.cards.petromBenzina.toFixed(2)} lei/L` : "-"}</div>
+              </div>
+              <div className="market-price-box">
+                <div className="small">Petrom Motorină</div>
+                <div className="market-value">{marketData ? `${marketData.cards.petromMotorina.toFixed(2)} lei/L` : "-"}</div>
+              </div>
+            </div>
+
+            <div className="grid-2 market-chart-grid">
+              <Card>
+                <div className="card-header">
+                  <h3>Evoluție combustibili (ultimele săptămâni)</h3>
+                </div>
+                <div className="chart-wrap">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={marketData?.weeklyFuelSeries ?? []}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="week" />
+                      <YAxis />
+                      <Tooltip formatter={(value) => [`${Number(value).toFixed(2)} lei/L`, ""]} />
+                      <Legend />
+                      <Line type="monotone" dataKey="benzina" name="Benzină" stroke="#2563eb" strokeWidth={3} dot={{ r: 3 }} />
+                      <Line type="monotone" dataKey="motorina" name="Motorină" stroke="#16a34a" strokeWidth={3} dot={{ r: 3 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+
+              <Card>
+                <div className="card-header">
+                  <h3>Preț baril Brent (USD)</h3>
+                </div>
+                <div className="chart-wrap">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={marketData?.brentSeries ?? []}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" />
+                      <YAxis />
+                      <Tooltip formatter={(value) => [`${Number(value).toFixed(2)} USD`, "Brent"]} />
+                      <Line type="monotone" dataKey="close" stroke="#9333ea" strokeWidth={3} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+            </div>
+
+            <div className="market-footnote small">
+              Ultima actualizare: {marketData ? new Date(marketData.updatedAt).toLocaleString("ro-RO") : "-"}.
+              {marketData?.fallback ? " Datele live nu au fost disponibile, se afișează valori de rezervă." : ""} Surse:
+              <a href={marketData?.sources.benzina ?? "https://peko.ro/pret-benzina"} target="_blank" rel="noreferrer"> Peko Benzină</a>,
+              <a href={marketData?.sources.motorina ?? "https://peko.ro/pret-motorina"} target="_blank" rel="noreferrer"> Peko Motorină</a>,
+              <a href={marketData?.sources.brent ?? "https://finance.yahoo.com/quote/BZ=F"} target="_blank" rel="noreferrer"> Yahoo Brent</a>.
+            </div>
+          </Card>
+        </div>
+      </section>
+
+      <section className="section section-tight">
+        <div className="container">
+          <Card className="parliament-update-card">
+            <div className="parliament-update-head">
+              <div className="eyebrow">Status buget 2026</div>
+              <Badge>{parliamentUpdate.title}</Badge>
+            </div>
+            <div className="parliament-grid">
+              {parliamentUpdate.highlights.map((item) => (
+                <div key={item} className="info-box small">{item}</div>
+              ))}
+            </div>
+            <div className="parliament-note">
+              {parliamentUpdate.socialDebate}
+              <span>
+                Sursă: comunicări publice Digi24 / TVR Info privind dezbaterea și votul din Parlament.
+              </span>
+            </div>
+          </Card>
+        </div>
+      </section>
+
+      <section className="section section-tight">
+        <div className="container">
+          <Card className="pad-lg">
+            <div className="eyebrow">Simulări rapide (sus)</div>
+            <h2>Scenarii multiple cu impact vizibil imediat</h2>
+            <div className="quick-sim-grid">
+              {quickScenarioResults.map((item) => (
+                <button
+                  key={item.name}
+                  type="button"
+                  className={`quick-sim-card ${item.tone}`}
+                  onClick={() => {
+                    setGrowthShock(item.values.growthShock);
+                    setInflationShock(item.values.inflationShock);
+                    setCollectionShock(item.values.collectionShock);
+                    setInterestShock(item.values.interestShock);
+                  }}
+                >
+                  <div className="quick-sim-title">{item.name}</div>
+                  <div className="small">{item.subtitle}</div>
+                  <div className="quick-sim-value">{fmtPct(item.result.deficitPct)}</div>
+                  <div className={`delta ${item.tone}`}>
+                    Impact deficit: {item.deficitDelta > 0 ? "+" : ""}
+                    {item.deficitDelta.toFixed(2)} pp
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <div className="infographic-grid">
+              {impactInfographics.map((metric) => {
+                const width = Math.max(6, Math.min(100, (metric.value / metric.max) * 100));
+                const delta = metric.value - metric.base;
+                return (
+                  <div key={metric.label} className="infographic-card">
+                    <div className="infographic-head">
+                      <span>{metric.label}</span>
+                      <strong>
+                        {metric.value.toFixed(1)} {metric.unit}
+                      </strong>
+                    </div>
+                    <div className="infographic-track">
+                      <div className="infographic-fill" style={{ width: `${width}%` }} />
+                    </div>
+                    <div className={`delta ${delta <= 0 ? "good" : "bad"}`}>
+                      {delta <= 0 ? <TrendingDown className="icon-xs" /> : <TrendingUp className="icon-xs" />}
+                      Față de bază: {delta > 0 ? "+" : ""}
+                      {delta.toFixed(2)}
+                      {metric.unit}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
         </div>
       </section>
 
@@ -490,6 +837,50 @@ export default function Page() {
                 efectelor, nu o prognoză oficială a Ministerului Finanțelor.
               </div>
 
+              <div className="preset-row">
+                {scenarioPresets.map((preset) => (
+                  <button
+                    key={preset.label}
+                    className="preset-btn"
+                    type="button"
+                    onClick={() => {
+                      setGrowthShock(preset.values.growthShock);
+                      setInflationShock(preset.values.inflationShock);
+                      setCollectionShock(preset.values.collectionShock);
+                      setInterestShock(preset.values.interestShock);
+                    }}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+                <button
+                  className="preset-btn psd-btn"
+                  type="button"
+                  onClick={() => {
+                    setGrowthShock(psdMeasuresScenario.growthShock);
+                    setInflationShock(psdMeasuresScenario.inflationShock);
+                    setCollectionShock(psdMeasuresScenario.collectionShock);
+                    setInterestShock(psdMeasuresScenario.interestShock);
+                  }}
+                >
+                  Impact măsuri PSD
+                </button>
+              </div>
+              <div className="psd-note">
+                Scenariu ilustrativ pentru măsuri solicitate public de PSD. În această calibrare,
+                impactul estimat <strong>crește deficitul</strong> cu
+                <strong> {psdDeltaPct > 0 ? "+" : ""}{psdDeltaPct.toFixed(2)} pp</strong> față de bază.
+              </div>
+
+              <div className="psd-measures-box">
+                <div className="info-title">Măsuri suplimentare cerute de PSD (sinteză publică)</div>
+                <ul>
+                  {psdExtraMeasures.map((measure) => (
+                    <li key={measure} className="small">{measure}</li>
+                  ))}
+                </ul>
+              </div>
+
               <SliderControl
                 label="Șoc de creștere reală (pp)"
                 value={growthShock}
@@ -603,6 +994,49 @@ export default function Page() {
       </section>
 
       <section className="section">
+        <div className="container grid-2">
+          <Card>
+            <div className="card-header">
+              <h3>Venituri vs. cheltuieli: bază vs. scenariu</h3>
+            </div>
+            <div className="chart-wrap">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={fiscalMixData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="label" />
+                  <YAxis />
+                  <Tooltip formatter={(value) => [`${Number(value).toFixed(1)} mld. lei`, ""]} />
+                  <Legend />
+                  <Bar dataKey="venituri" fill="#16a34a" radius={[8, 8, 0, 0]} />
+                  <Bar dataKey="cheltuieli" fill="#dc2626" radius={[8, 8, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+
+          <Card>
+            <div className="card-header">
+              <h3>Evoluția până la scenariul final</h3>
+            </div>
+            <div className="chart-wrap">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={trajectoryData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="step" />
+                  <YAxis yAxisId="left" domain={[4.5, 9]} />
+                  <YAxis yAxisId="right" orientation="right" domain={[55, 70]} />
+                  <Tooltip formatter={(value) => [`${Number(value).toFixed(2)}%`, "Valoare"]} />
+                  <Legend />
+                  <Line yAxisId="left" type="monotone" dataKey="deficitPct" name="Deficit (% PIB)" stroke="#1d4ed8" strokeWidth={3} dot={{ r: 4 }} />
+                  <Line yAxisId="right" type="monotone" dataKey="debtPct" name="Datorie (% PIB)" stroke="#7c3aed" strokeWidth={3} dot={{ r: 4 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </Card>
+        </div>
+      </section>
+
+      <section className="section">
         <div className="container grid-3">
           <Card className="span-2">
             <div className="card-header">
@@ -691,7 +1125,7 @@ export default function Page() {
               </div>
             </div>
             <div className="source-box">
-              Sursă: proiectul legii bugetului de stat 2026 și raportul
+              Sursă: forma finală a legii bugetului de stat 2026 și raportul
               explicativ al Ministerului Finanțelor
               <ArrowRight className="icon-xs" />
             </div>
