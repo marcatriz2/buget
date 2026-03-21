@@ -40,12 +40,24 @@ function parseNumber(value: string) {
   return Number(value.replace(",", "."));
 }
 
-function extractFuelSnapshot(html: string): FuelSnapshot {
-  const averageMatch = html.match(/Preț mediu[\s\S]{0,80}?(\d+[\.,]\d+)\s*Lei/i);
-  const pctMatch = html.match(/([+-]?\d+[\.,]\d+)%\s*față\s*de\s*acum\s*30\s*de\s*zile/i);
+function normalizeText(input: string) {
+  return input
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ţ/g, "t")
+    .replace(/ș/g, "s")
+    .replace(/ț/g, "t")
+    .toLowerCase();
+}
 
-  const omvMatch = html.match(/OMV[\s\S]{0,220}?(\d+[\.,]\d+)\s*Lei/i);
-  const petromMatch = html.match(/PETROM[\s\S]{0,220}?(\d+[\.,]\d+)\s*Lei/i);
+function extractFuelSnapshot(html: string): FuelSnapshot {
+  const normalized = normalizeText(html);
+
+  const averageMatch = normalized.match(/pret mediu[\s\S]{0,120}?(\d+[\.,]\d+)\s*lei/i);
+  const pctMatch = normalized.match(/([+-]?\d+[\.,]\d+)%\s*fata\s*de\s*acum\s*30\s*de\s*zile/i);
+
+  const omvMatch = normalized.match(/omv[\s\S]{0,260}?(\d+[\.,]\d+)\s*lei/i);
+  const petromMatch = normalized.match(/petrom[\s\S]{0,260}?(\d+[\.,]\d+)\s*lei/i);
 
   return {
     average: averageMatch ? parseNumber(averageMatch[1]) : 0,
@@ -91,6 +103,10 @@ export async function GET() {
 
     const benzina = extractFuelSnapshot(benzinaHtml);
     const motorina = extractFuelSnapshot(motorinaHtml);
+
+    if (benzina.average <= 0 || motorina.average <= 0) {
+      throw new Error("Nu am putut extrage prețurile carburanților din sursele live.");
+    }
 
     const fuelWeeklyRaw = [
       ...buildWeeklySeries("Benzină", benzina.average, benzina.pct30d),
