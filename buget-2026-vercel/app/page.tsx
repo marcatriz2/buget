@@ -306,6 +306,17 @@ export default function Page() {
     },
   ];
 
+  const parliamentUpdate = {
+    title: "Update parlamentar · martie 2026",
+    highlights: [
+      "PIB de referință: ~2.045 mld. lei.",
+      "Țintă deficit cash: 6,2% din PIB.",
+      "Investiții publice: ~164 mld. lei.",
+      "Salariul minim anunțat: 4.325 lei brut (de la 1 iulie).",
+    ],
+    socialDebate: "În negocierile parlamentare au fost cerute fonduri sociale suplimentare (aprox. 3 mld. lei).",
+  };
+
   const cards = [
     {
       title: "Venituri buget de stat",
@@ -484,6 +495,28 @@ export default function Page() {
               icon={Activity}
             />
           </div>
+        </div>
+      </section>
+
+      <section className="section section-tight">
+        <div className="container">
+          <Card className="parliament-update-card">
+            <div className="parliament-update-head">
+              <div className="eyebrow">Status buget 2026</div>
+              <Badge>{parliamentUpdate.title}</Badge>
+            </div>
+            <div className="parliament-grid">
+              {parliamentUpdate.highlights.map((item) => (
+                <div key={item} className="info-box small">{item}</div>
+              ))}
+            </div>
+            <div className="parliament-note">
+              {parliamentUpdate.socialDebate}
+              <span>
+                Sursă: comunicări publice Digi24 / TVR Info privind dezbaterea și votul din Parlament.
+              </span>
+            </div>
+          </Card>
         </div>
       </section>
 

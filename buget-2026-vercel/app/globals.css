@@ -124,6 +124,36 @@ main { min-height: 100vh; }
 .section-tight { padding-top: 12px; }
 .bottom-pad { padding-bottom: 44px; }
 
+.parliament-update-card {
+  background: linear-gradient(135deg, #fff7ed 0%, #ffffff 45%, #f8fafc 100%);
+  border: 1px solid #fed7aa;
+  border-radius: 24px;
+  padding: 20px;
+}
+
+.parliament-update-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.parliament-grid {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.parliament-note {
+  margin-top: 12px;
+  font-size: 0.95rem;
+  color: #9a3412;
+  line-height: 1.6;
+  display: grid;
+  gap: 4px;
+}
+
 .card {
   background: var(--card);
   border: 1px solid var(--line);
@@ -454,7 +484,8 @@ h2 {
   .grid-3,
   .scenario-grid,
   .quick-sim-grid,
-  .infographic-grid {
+  .infographic-grid,
+  .parliament-grid {
     grid-template-columns: 1fr 1fr;
   }
   .conclusion {
@@ -480,7 +511,8 @@ h2 {
   .grid-3,
   .scenario-grid,
   .quick-sim-grid,
-  .infographic-grid {
+  .infographic-grid,
+  .parliament-grid {
     grid-template-columns: 1fr;
   }
   .pad-lg,
