@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AlertTriangle,
@@ -32,6 +32,26 @@ import {
 
 const fmtBn = (n: number) => `${n.toFixed(1)} mld. lei`;
 const fmtPct = (n: number) => `${n.toFixed(1)}%`;
+
+
+type MarketData = {
+  updatedAt: string;
+  cards: {
+    omvBenzina: number;
+    omvMotorina: number;
+    petromBenzina: number;
+    petromMotorina: number;
+  };
+  weeklyFuelSeries: Array<{ week: string; benzina: number; motorina: number }>;
+  brentSeries: Array<{ date: string; close: number }>;
+  sources: {
+    benzina: string;
+    motorina: string;
+    brent: string;
+  };
+  fallback?: boolean;
+  error?: string;
+};
 
 const BASE = {
   gdp: 2045.186,
@@ -196,6 +216,50 @@ export default function Page() {
   const [inflationShock, setInflationShock] = useState(0);
   const [collectionShock, setCollectionShock] = useState(0);
   const [interestShock, setInterestShock] = useState(0);
+  const [marketData, setMarketData] = useState<MarketData | null>(null);
+  const [marketLoading, setMarketLoading] = useState(false);
+  const [marketError, setMarketError] = useState<string | null>(null);
+
+  const refreshMarketData = async () => {
+    try {
+      setMarketLoading(true);
+      setMarketError(null);
+      const response = await fetch("/api/market-data", { cache: "no-store" });
+      if (!response.ok) throw new Error("Nu am putut actualiza datele din piață.");
+      const data = (await response.json()) as MarketData;
+      setMarketData(data);
+    } catch (error) {
+      setMarketError(error instanceof Error ? error.message : "Eroare la actualizare.");
+    } finally {
+      setMarketLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshMarketData();
+  }, []);
+
+  const scenarioPresets = [
+    {
+      label: "Scenariu de bază",
+      values: { growthShock: 0, inflationShock: 0, collectionShock: 0, interestShock: 0 },
+    },
+    {
+      label: "Optimist",
+      values: { growthShock: 1.4, inflationShock: -0.4, collectionShock: 1.2, interestShock: -2 },
+    },
+    {
+      label: "Pesimist",
+      values: { growthShock: -1.5, inflationShock: 1.1, collectionShock: -1.2, interestShock: 4 },
+    },
+  ];
+
+  const psdMeasuresScenario = {
+    growthShock: 0.2,
+    inflationShock: 0.6,
+    collectionShock: -0.8,
+    interestShock: 4.5,
+  };
 
   const scenarioPresets = [
     {
@@ -321,13 +385,13 @@ export default function Page() {
     {
       title: "Venituri buget de stat",
       value: fmtBn(BASE.stateBudgetRevenue),
-      sub: "Nivelul din proiectul legii bugetului de stat 2026",
+      sub: "Nivelul din forma finală a legii bugetului de stat 2026",
       icon: Wallet,
     },
     {
       title: "Cheltuieli buget de stat",
       value: fmtBn(BASE.stateBudgetExpense),
-      sub: "Credite bugetare autorizate prin proiect",
+      sub: "Credite bugetare autorizate prin forma finală",
       icon: Landmark,
     },
     {
@@ -456,13 +520,13 @@ export default function Page() {
         <div className="hero-overlay" />
         <div className="container hero-inner">
           <div className="hero-copy">
-            <Badge>România · Proiect buget 2026</Badge>
+            <Badge>România · Buget de stat 2026 (forma finală)</Badge>
             <h1>
               Bugetul 2026: disciplină fiscală, control central și risc macro
               încă ridicat.
             </h1>
             <p>
-              O prezentare publică a principalelor concluzii din proiectul legii
+              O prezentare publică a principalelor concluzii din forma finală a legii
               bugetului de stat pe 2026, plus un simulator simplificat care
               arată cum se mișcă deficitul dacă se schimbă creșterea, inflația,
               colectarea sau costul dobânzilor.
@@ -495,6 +559,89 @@ export default function Page() {
               icon={Activity}
             />
           </div>
+        </div>
+      </section>
+
+      <section className="section section-tight">
+        <div className="container">
+          <Card className="market-card">
+            <div className="market-header-row">
+              <div>
+                <div className="eyebrow">Prețuri carburanți & petrol (live)</div>
+                <h3>Date curente OMV/Petrom + evoluție ultimele săptămâni</h3>
+              </div>
+              <button className="update-btn" type="button" onClick={refreshMarketData} disabled={marketLoading}>
+                {marketLoading ? "Se actualizează..." : "Update"}
+              </button>
+            </div>
+
+            {marketError && <div className="market-error">{marketError}</div>}
+
+            <div className="market-price-grid">
+              <div className="market-price-box">
+                <div className="small">OMV Benzină</div>
+                <div className="market-value">{marketData ? `${marketData.cards.omvBenzina.toFixed(2)} lei/L` : "-"}</div>
+              </div>
+              <div className="market-price-box">
+                <div className="small">OMV Motorină</div>
+                <div className="market-value">{marketData ? `${marketData.cards.omvMotorina.toFixed(2)} lei/L` : "-"}</div>
+              </div>
+              <div className="market-price-box">
+                <div className="small">Petrom Benzină</div>
+                <div className="market-value">{marketData ? `${marketData.cards.petromBenzina.toFixed(2)} lei/L` : "-"}</div>
+              </div>
+              <div className="market-price-box">
+                <div className="small">Petrom Motorină</div>
+                <div className="market-value">{marketData ? `${marketData.cards.petromMotorina.toFixed(2)} lei/L` : "-"}</div>
+              </div>
+            </div>
+
+            <div className="grid-2 market-chart-grid">
+              <Card>
+                <div className="card-header">
+                  <h3>Evoluție combustibili (ultimele săptămâni)</h3>
+                </div>
+                <div className="chart-wrap">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={marketData?.weeklyFuelSeries ?? []}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="week" />
+                      <YAxis />
+                      <Tooltip formatter={(value) => [`${Number(value).toFixed(2)} lei/L`, ""]} />
+                      <Legend />
+                      <Line type="monotone" dataKey="benzina" name="Benzină" stroke="#2563eb" strokeWidth={3} dot={{ r: 3 }} />
+                      <Line type="monotone" dataKey="motorina" name="Motorină" stroke="#16a34a" strokeWidth={3} dot={{ r: 3 }} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+
+              <Card>
+                <div className="card-header">
+                  <h3>Preț baril Brent (USD)</h3>
+                </div>
+                <div className="chart-wrap">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={marketData?.brentSeries ?? []}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" />
+                      <YAxis />
+                      <Tooltip formatter={(value) => [`${Number(value).toFixed(2)} USD`, "Brent"]} />
+                      <Line type="monotone" dataKey="close" stroke="#9333ea" strokeWidth={3} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </Card>
+            </div>
+
+            <div className="market-footnote small">
+              Ultima actualizare: {marketData ? new Date(marketData.updatedAt).toLocaleString("ro-RO") : "-"}.
+              {marketData?.fallback ? " Datele live nu au fost disponibile, se afișează valori de rezervă." : ""} Surse:
+              <a href={marketData?.sources.benzina ?? "https://peko.ro/pret-benzina"} target="_blank" rel="noreferrer"> Peko Benzină</a>,
+              <a href={marketData?.sources.motorina ?? "https://peko.ro/pret-motorina"} target="_blank" rel="noreferrer"> Peko Motorină</a>,
+              <a href={marketData?.sources.brent ?? "https://finance.yahoo.com/quote/BZ=F"} target="_blank" rel="noreferrer"> Yahoo Brent</a>.
+            </div>
+          </Card>
         </div>
       </section>
 
@@ -1000,7 +1147,7 @@ export default function Page() {
               </div>
             </div>
             <div className="source-box">
-              Sursă: proiectul legii bugetului de stat 2026 și raportul
+              Sursă: forma finală a legii bugetului de stat 2026 și raportul
               explicativ al Ministerului Finanțelor
               <ArrowRight className="icon-xs" />
             </div>

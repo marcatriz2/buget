@@ -124,6 +124,80 @@ main { min-height: 100vh; }
 .section-tight { padding-top: 12px; }
 .bottom-pad { padding-bottom: 44px; }
 
+
+.market-card {
+  border: 1px solid #bfdbfe;
+  border-radius: 24px;
+  background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
+  padding: 20px;
+}
+
+.market-header-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.update-btn {
+  border: none;
+  border-radius: 999px;
+  background: #1d4ed8;
+  color: #fff;
+  font-weight: 700;
+  padding: 10px 16px;
+  cursor: pointer;
+}
+
+.update-btn:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.market-price-grid {
+  margin-top: 14px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.market-price-box {
+  border: 1px solid #dbeafe;
+  border-radius: 14px;
+  background: #ffffff;
+  padding: 12px;
+}
+
+.market-value {
+  margin-top: 6px;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.market-chart-grid {
+  margin-top: 14px;
+}
+
+.market-footnote {
+  margin-top: 10px;
+}
+
+.market-footnote a {
+  color: #1d4ed8;
+  text-decoration: none;
+}
+
+.market-error {
+  margin-top: 10px;
+  border: 1px solid #fecaca;
+  background: #fff1f2;
+  color: #9f1239;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-size: 0.9rem;
+}
+
 .parliament-update-card {
   background: linear-gradient(135deg, #fff7ed 0%, #ffffff 45%, #f8fafc 100%);
   border: 1px solid #fed7aa;
@@ -485,7 +559,8 @@ h2 {
   .scenario-grid,
   .quick-sim-grid,
   .infographic-grid,
-  .parliament-grid {
+  .parliament-grid,
+  .market-price-grid {
     grid-template-columns: 1fr 1fr;
   }
   .conclusion {
@@ -512,7 +587,8 @@ h2 {
   .scenario-grid,
   .quick-sim-grid,
   .infographic-grid,
-  .parliament-grid {
+  .parliament-grid,
+  .market-price-grid {
     grid-template-columns: 1fr;
   }
   .pad-lg,
@@ -527,6 +603,9 @@ h2 {
     padding: 6px 10px 16px;
   }
   .slider-head {
+    flex-direction: column;
+  }
+  .market-header-row {
     flex-direction: column;
   }
 }
